@@ -4,7 +4,6 @@ use crate::{
 };
 use wafel_api::Game;
 
-
 /// Contains the information about Mario which is used when checking for bounds. These fields
 /// mirror the fields of the weights and bounds structs, and should be updated accordingly if
 /// more fields are added to the bounds and weights structs.
@@ -340,5 +339,3 @@ impl InHspdBounds {
         }
     }
 }
-
-

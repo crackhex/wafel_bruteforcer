@@ -1,7 +1,7 @@
-use crate::bounds::{Bounds, CommonMarioData, IsInBounds, Weights, adjust_weights};
+use crate::bounds::{Bounds, CommonMarioData, IsInBounds, Weights};
 use crate::{
     ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS,
-    GAME_CREATION_LOCK, HSPD_WEIGHT, M64File, OUT_NAME, POS_WEIGHTS,
+    GAME_CREATION_LOCK, HSPD_WEIGHT, INF, M64File, OUT_NAME, POS_WEIGHTS,
 };
 use crate::{BOUND_CORRECTION, END_FRAME, PERM_FREQ, PERM_SIZE, START_FRAME, WAFEL_PATH};
 use crate::{NUM_THREADS, VERSION};
@@ -87,20 +87,27 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             start_st = game.save_state();
         }
     }
-    let mut weights = Weights {
+    let weights = Weights {
         pos_weights: POS_WEIGHTS,
         face_angle_weights: FACE_ANGLE_WEIGHTS,
         angle_vel_weights: ANGLE_VEL_WEIGHTS,
         hspd_weight: HSPD_WEIGHT,
     };
+    let mut result: f64 = INF;
     let mario_data = CommonMarioData::new_from_game(&game);
+    let bounds = Bounds::new();
+    let mut in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
+
+    // todo: Pull into a function
     if BOUND_CORRECTION {
-        let bounds = Bounds::new();
-        let in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
-        adjust_weights(&in_bounds, &mut weights);
+        let mut new_weights = Weights::new();
+        new_weights.adjust_weights(&in_bounds);
+        result = calculate_score(&mario_data, &weights);
+    } else {
+        // todo: If bound correction is not enabled, use different score calculation
+        result = calculate_score(&mario_data, &weights);
     }
 
-    let mut result: f64 = calculate_score(&mario_data, &weights);
     println!("Thread {thread_num}: Initial score: {result}, at frame {END_FRAME}");
     let count = 0;
     loop {
@@ -120,11 +127,16 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             set_inputs(&mut game, &m64_perturb.1[frame as usize]);
             game.advance();
         }
+        let mario_data = CommonMarioData::new_from_game(&game);
+        in_bounds.update_all_in_bounds(&mario_data, &bounds);
+        // todo: Pull into a function
         if BOUND_CORRECTION {
-            weights = Weights::new();
-            let bounds = Bounds::new();
-            let in_bounds = IsInBounds::new_from_game(&game, &bounds);
-            adjust_weights(&in_bounds, &mut weights);
+            let mut new_weights = Weights::new();
+            new_weights.adjust_weights(&in_bounds);
+            result = calculate_score(&mario_data, &weights);
+        } else {
+            // todo: If bound correction is not enabled, use different score calculation
+            result = calculate_score(&mario_data, &weights);
         }
         let new_score = calculate_score(&mario_data, &weights);
         if new_score < result {
