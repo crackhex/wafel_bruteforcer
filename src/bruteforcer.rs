@@ -128,7 +128,7 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             game.advance();
         }
         let mario_data = CommonMarioData::new_from_game(&game);
-        in_bounds.update_all_in_bounds(&mario_data, &bounds);
+        in_bounds.update_from_mario_data(&mario_data, &bounds);
         // todo: Pull into a function
         if BOUND_CORRECTION {
             let mut new_weights = Weights::new();

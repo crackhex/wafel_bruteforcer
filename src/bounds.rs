@@ -111,7 +111,11 @@ impl IsInBounds {
         }
     }
 
-    pub const fn update_all_in_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+    pub(crate) const fn update_from_mario_data(
+        &mut self,
+        mario_data: &CommonMarioData,
+        bounds: &Bounds,
+    ) {
         self.pos_limits
             .update_in_pos_bounds(mario_data.pos, bounds.pos_limits);
         self.face_angle_limits
@@ -137,13 +141,8 @@ impl IsInBounds {
     /// given by Bounds and returns an instance of IsInBounds containing the results.
     pub(crate) const fn new_from_mario_data(mario_data: &CommonMarioData, bounds: &Bounds) -> Self {
         let mut is_in_bounds: Self = Self::new();
-        is_in_bounds.update_all_in_bounds(mario_data, bounds);
+        is_in_bounds.update_from_mario_data(mario_data, bounds);
         is_in_bounds
-    }
-
-    /// Takes in an instance of CommonMarioData and Bounds, checks if the data is within bounds,
-    pub(crate) fn update_from_mario_data(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
-        self.update_all_in_bounds(mario_data, bounds);
     }
 }
 
