@@ -10,6 +10,25 @@ pub struct CommonMarioData {
     pub angle_vel: [i16; 3],
     pub forward_vel: f32,
 }
+impl CommonMarioData {
+    pub fn new(pos: [f32; 3], face_angle: [i16; 3], angle_vel: [i16; 3], forward_vel: f32) -> Self {
+        Self {
+            pos,
+            face_angle,
+            angle_vel,
+            forward_vel,
+        }
+    }
+    pub fn new_from_game(game: &Game) -> Self {
+        Self {
+            pos: game.read("gMarioState.pos").as_f32_3(),
+            face_angle: game.read("gMarioState.faceAngle").as_i16_3(),
+            angle_vel: game.read("gMarioState.angleVel").as_i16_3(),
+            forward_vel: game.read("gMarioState.forwardVel").as_f32(),
+        }
+    }
+}
+
 pub struct Weights {
     pub pos_weights: [f64; 3],
     pub face_angle_weights: [f64; 3],
@@ -52,7 +71,7 @@ pub struct IsInBounds {
 }
 
 impl IsInBounds {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             pos_limits: InPosBounds::new(),
             angle_vel_limits: InAngleVelBounds::new(),
@@ -61,47 +80,39 @@ impl IsInBounds {
         }
     }
 
-    pub fn check_all_limits(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+    pub const fn update_all_in_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
         self.pos_limits
-            .check_pos_limits(mario_data.pos, bounds.pos_limits);
+            .update_in_pos_bounds(mario_data.pos, bounds.pos_limits);
         self.face_angle_limits
-            .check_face_angle_limits(mario_data.face_angle, bounds.face_angle_limits);
+            .update_in_face_angle_bounds(mario_data.face_angle, bounds.face_angle_limits);
         self.angle_vel_limits
-            .check_angle_vel_limits(mario_data.angle_vel, &bounds.angle_vel_limits);
+            .update_in_angle_vel_bounds(mario_data.angle_vel, &bounds.angle_vel_limits);
         self.hspd_limits
-            .check_hspd_limits(mario_data.forward_vel, bounds.hspd_limits);
+            .update_in_hspd_bounds(mario_data.forward_vel, bounds.hspd_limits);
     }
 
     /// Takes in Game reference and Bounds reference, determines if Mario is in bounds, and
     /// returns an Owned instance of IsInBounds containing the results
-    pub fn check_bounds_from_game(game: &Game, bounds: &Bounds) -> Self {
+    pub fn new_from_game(game: &Game, bounds: &Bounds) -> Self {
         let pos = game.read("gMarioState.pos").as_f32_3();
         let angle = game.read("gMarioState.faceAngle").as_i16_3();
         let angle_vel = game.read("gMarioState.angleVel").as_i16_3();
         let hspd = game.read("gMarioState.forwardVel").as_f32();
-        IsInBounds::create_in_bounds(pos, angle, angle_vel, hspd, bounds)
+        let mario_data = CommonMarioData::new(pos, angle, angle_vel, hspd);
+        IsInBounds::new_from_mario_data(&mario_data, bounds)
     }
 
-    /// Checks if the given position, angles, angle velocities, and horizontal speed are within
-    /// the specified bounds, and returns an instance of IsInBounds containing the results.
-    fn create_in_bounds(
-        pos: [f32; 3],
-        angle: [i16; 3],
-        angle_vel: [i16; 3],
-        hspd: f32,
-        bounds: &Bounds,
-    ) -> Self {
+    /// Checks if the given data from CommonMarioData are within the specified bounds
+    /// given by Bounds and returns an instance of IsInBounds containing the results.
+    pub(crate) const fn new_from_mario_data(mario_data: &CommonMarioData, bounds: &Bounds) -> Self {
         let mut is_in_bounds: Self = Self::new();
-        is_in_bounds.check_all_limits(
-            &CommonMarioData {
-                pos,
-                face_angle: angle,
-                angle_vel,
-                forward_vel: hspd,
-            },
-            bounds,
-        );
+        is_in_bounds.update_all_in_bounds(mario_data, bounds);
         is_in_bounds
+    }
+
+    /// Takes in an instance of CommonMarioData and Bounds, checks if the data is within bounds,
+    pub(crate) fn update_from_mario_data(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+        self.update_all_in_bounds(mario_data, bounds);
     }
 }
 
@@ -118,7 +129,7 @@ impl Default for InPosBounds {
 }
 
 impl InPosBounds {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         InPosBounds {
             pos_x: true,
             pos_y: true,
@@ -126,7 +137,9 @@ impl InPosBounds {
         }
     }
 
-    pub fn check_pos_limits(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
+    /// Takes in a mutable reference to Self and checks if the given position is within
+    /// the specified position limits. The fields for the struct are then set accordingly.
+    pub const fn update_in_pos_bounds(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
         if !((pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1)) {
             self.pos_x = false;
         }
@@ -148,12 +161,12 @@ impl IntoIterator for InPosBounds {
     }
 }
 
-impl<'a> IntoIterator for &'a InPosBounds {
-    type Item = &'a bool;
-    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+impl IntoIterator for &InPosBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
 
     fn into_iter(self) -> Self::IntoIter {
-        [&self.pos_x, &self.pos_y, &self.pos_z].into_iter()
+        [self.pos_x, self.pos_y, self.pos_z].into_iter()
     }
 }
 
@@ -170,14 +183,14 @@ impl Default for InAngleVelBounds {
 }
 
 impl InAngleVelBounds {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         InAngleVelBounds {
             angle_vel_x: true,
             angle_vel_y: true,
             angle_vel_z: true,
         }
     }
-    pub fn check_angle_vel_limits(
+    pub const fn update_in_angle_vel_bounds(
         &mut self,
         angle_vel: [i16; 3],
         angle_vel_limits: &[(i16, i16); 3],
@@ -203,12 +216,12 @@ impl IntoIterator for InAngleVelBounds {
     }
 }
 
-impl<'a> IntoIterator for &'a InAngleVelBounds {
-    type Item = &'a bool;
-    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+impl IntoIterator for &InAngleVelBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
 
     fn into_iter(self) -> Self::IntoIter {
-        [&self.angle_vel_x, &self.angle_vel_y, &self.angle_vel_z].into_iter()
+        [self.angle_vel_x, self.angle_vel_y, self.angle_vel_z].into_iter()
     }
 }
 
@@ -225,7 +238,7 @@ impl Default for InFaceAngleBounds {
 }
 
 impl InFaceAngleBounds {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         InFaceAngleBounds {
             face_angle_x: true,
             face_angle_y: true,
@@ -233,7 +246,11 @@ impl InFaceAngleBounds {
         }
     }
 
-    pub fn check_face_angle_limits(&mut self, angle: [i16; 3], face_angle_limits: [(i32, i32); 3]) {
+    pub const fn update_in_face_angle_bounds(
+        &mut self,
+        angle: [i16; 3],
+        face_angle_limits: [(i32, i32); 3],
+    ) {
         if !((face_angle_limits[0].0 < (angle[0] as i32))
             && ((angle[0] as i32) < face_angle_limits[0].1))
         {
@@ -261,12 +278,12 @@ impl IntoIterator for InFaceAngleBounds {
     }
 }
 
-impl<'a> IntoIterator for &'a InFaceAngleBounds {
-    type Item = &'a bool;
-    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+impl IntoIterator for &InFaceAngleBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
 
     fn into_iter(self) -> Self::IntoIter {
-        [&self.face_angle_x, &self.face_angle_y, &self.face_angle_z].into_iter()
+        [self.face_angle_x, self.face_angle_y, self.face_angle_z].into_iter()
     }
 }
 pub struct InHspdBounds {
@@ -274,11 +291,11 @@ pub struct InHspdBounds {
 }
 
 impl InHspdBounds {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         InHspdBounds { hspd: true }
     }
 
-    pub fn check_hspd_limits(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
+    pub const fn update_in_hspd_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
         if !((hspd_limits.0 < hspd) && (hspd < hspd_limits.1)) {
             self.hspd = false;
         }

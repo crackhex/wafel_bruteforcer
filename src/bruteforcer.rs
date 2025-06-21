@@ -1,4 +1,4 @@
-use crate::bounds::{Bounds, IsInBounds, Weights, adjust_weights};
+use crate::bounds::{Bounds, CommonMarioData, IsInBounds, Weights, adjust_weights};
 use crate::{
     ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS,
     GAME_CREATION_LOCK, HSPD_WEIGHT, M64File, OUT_NAME, POS_WEIGHTS,
@@ -15,14 +15,14 @@ use wafel_api::{Game, save_m64};
 
 pub fn spawn_dlls() {
     println!("spawning DLLs...");
-    let path = &*format!("{WAFEL_PATH}libsm64\\sm64_{VERSION}.dll");
+    let path = format!("{WAFEL_PATH}libsm64\\sm64_{VERSION}.dll");
     //let m64_path = &*format!("{INP_NAME}.m64");
     for i in 0..NUM_THREADS - 1 {
-        let path_copy = &*format!("{WAFEL_PATH}libsm64\\sm64_{VERSION}{i}.dll");
+        let path_copy = format!("{WAFEL_PATH}libsm64\\sm64_{VERSION}{i}.dll");
         // let m64_copy = &*format!("{INP_NAME}.{i}.m64");
-        if !Path::new(path_copy).is_file() {
+        if !Path::new(&path_copy).is_file() {
             println!("{i}");
-            copy(path, path_copy).unwrap();
+            copy(&path, path_copy).unwrap();
         }
         //if !Path::new(m64_copy).is_file() {
         // copy(m64_path, m64_copy).unwrap();
@@ -47,28 +47,20 @@ pub fn set_inputs(game: &mut Game, input: &Input) {
 }
 
 // Checking if mario falls within the limits set
-pub fn calculate_score(game: &Game, weights: &Weights) -> f64 {
+pub fn calculate_score(mario_data: &CommonMarioData, weights: &Weights) -> f64 {
     let mut result: f64 = 0.0;
     result = 0.0;
     for i in 0..3 {
-        result += (DES_POS[i] - game.read("gMarioState.pos").as_f32_3()[i]).abs() as f64
-            * weights.pos_weights[i];
-        result += (DES_ANGLE_VEL[i] - (game.read("gMarioState.angleVel").as_i16_3()[i])).abs()
-            as f64
+        result += (DES_POS[i] - mario_data.pos[i]).abs() as f64 * weights.pos_weights[i];
+        result += (DES_ANGLE_VEL[i] - (mario_data.angle_vel[i])).abs() as f64
             * weights.angle_vel_weights[i];
     }
-    result += (DES_HSPD - game.read("gMarioState.forwardVel").as_f32()).abs() as f64
-        * weights.hspd_weight;
-    result += (DES_FACE_ANGLE[0] as f64
-        - (game.read("gMarioState.faceAngle").as_i16_3()[0] as f64))
-        .abs()
+    result += (DES_HSPD - mario_data.forward_vel).abs() as f64 * weights.hspd_weight;
+    result += (DES_FACE_ANGLE[0] as f64 - mario_data.face_angle[0] as f64).abs()
         * weights.face_angle_weights[0];
-    result += (DES_FACE_ANGLE[1] - (game.read("gMarioState.faceAngle").as_i16_3()[1] as u16) as i32)
-        .abs() as f64
+    result += (DES_FACE_ANGLE[1] - (mario_data.face_angle[1] as u16) as i32).abs() as f64
         * weights.face_angle_weights[1];
-    result += (DES_FACE_ANGLE[2] as f64
-        - (game.read("gMarioState.faceAngle").as_i16_3()[2] as f64))
-        .abs()
+    result += (DES_FACE_ANGLE[2] as f64 - mario_data.face_angle[2] as f64).abs()
         * weights.face_angle_weights[2];
     result
 }
@@ -101,13 +93,14 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         angle_vel_weights: ANGLE_VEL_WEIGHTS,
         hspd_weight: HSPD_WEIGHT,
     };
+    let mario_data = CommonMarioData::new_from_game(&game);
     if BOUND_CORRECTION {
         let bounds = Bounds::new();
-        let in_bounds = IsInBounds::check_bounds_from_game(&game, &bounds);
+        let in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
         adjust_weights(&in_bounds, &mut weights);
     }
 
-    let mut result: f64 = calculate_score(&game, &weights);
+    let mut result: f64 = calculate_score(&mario_data, &weights);
     println!("Thread {thread_num}: Initial score: {result}, at frame {END_FRAME}");
     let count = 0;
     loop {
@@ -130,10 +123,10 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         if BOUND_CORRECTION {
             weights = Weights::new();
             let bounds = Bounds::new();
-            let in_bounds = IsInBounds::check_bounds_from_game(&game, &bounds);
+            let in_bounds = IsInBounds::new_from_game(&game, &bounds);
             adjust_weights(&in_bounds, &mut weights);
         }
-        let new_score = calculate_score(&game, &weights);
+        let new_score = calculate_score(&mario_data, &weights);
         if new_score < result {
             // If the new score is better, update the inputs and result
             result = new_score;
