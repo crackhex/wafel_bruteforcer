@@ -4,6 +4,10 @@ use crate::{
 };
 use wafel_api::Game;
 
+
+/// Contains the information about Mario which is used when checking for bounds. These fields
+/// mirror the fields of the weights and bounds structs, and should be updated accordingly if
+/// more fields are added to the bounds and weights structs.
 pub struct CommonMarioData {
     pub pos: [f32; 3],
     pub face_angle: [i16; 3],
@@ -42,6 +46,34 @@ impl Weights {
             face_angle_weights: FACE_ANGLE_WEIGHTS,
             angle_vel_weights: ANGLE_VEL_WEIGHTS,
             hspd_weight: HSPD_WEIGHT,
+        }
+    }
+    /// Takes in an instance of IsInBounds and a mutable reference to Weights, and adjusts the weights
+    /// based on the data given by in_bounds. This is used to penalize the score for not being within
+    /// the specified bounds, without failing the score entirely.
+    pub fn adjust_weights(&mut self, in_bounds: &IsInBounds) {
+        // 0 for testing //check_limits(game);
+        for (i, in_bounds_pos) in (&in_bounds.pos_limits).into_iter().enumerate() {
+            if !in_bounds_pos {
+                self.pos_weights[i] += 1.0;
+                self.pos_weights[i] *= 10000.0;
+            }
+        }
+        for (i, in_bounds_face_angle) in (&in_bounds.face_angle_limits).into_iter().enumerate() {
+            if !in_bounds_face_angle {
+                self.face_angle_weights[i] += 1.0;
+                self.face_angle_weights[i] *= 10000.0;
+            }
+        }
+        for (i, in_bounds_angle_vel) in (&in_bounds.angle_vel_limits).into_iter().enumerate() {
+            if !in_bounds_angle_vel {
+                self.angle_vel_weights[i] += 1.0;
+                self.angle_vel_weights[i] *= 10000.0;
+            }
+        }
+        if !in_bounds.hspd_limits.hspd {
+            self.hspd_weight += 1.0;
+            self.hspd_weight *= 1000.0;
         }
     }
 }
@@ -190,6 +222,9 @@ impl InAngleVelBounds {
             angle_vel_z: true,
         }
     }
+
+    /// Takes in a mutable reference to Self and checks if the given angle velocities are within
+    /// the specified angle velocity limits. The fields for the struct are then set accordingly.
     pub const fn update_in_angle_vel_bounds(
         &mut self,
         angle_vel: [i16; 3],
@@ -246,6 +281,8 @@ impl InFaceAngleBounds {
         }
     }
 
+    /// Takes in a mutable reference to Self and checks if the given face angles are within
+    /// the specified face angle limits. The fields for the struct are then set accordingly.
     pub const fn update_in_face_angle_bounds(
         &mut self,
         angle: [i16; 3],
@@ -295,6 +332,8 @@ impl InHspdBounds {
         InHspdBounds { hspd: true }
     }
 
+    /// Takes in a mutable reference to Self and checks if the given horizontal speed is within
+    /// the specified forward velocity limits. The fields for the struct are then set accordingly.
     pub const fn update_in_hspd_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
         if !((hspd_limits.0 < hspd) && (hspd < hspd_limits.1)) {
             self.hspd = false;
@@ -302,28 +341,4 @@ impl InHspdBounds {
     }
 }
 
-pub fn adjust_weights(in_bounds: &IsInBounds, weights: &mut Weights) {
-    // 0 for testing //check_limits(game);
-    for (i, in_bounds_pos) in (&in_bounds.pos_limits).into_iter().enumerate() {
-        if !in_bounds_pos {
-            weights.pos_weights[i] += 1.0;
-            weights.pos_weights[i] *= 10000.0;
-        }
-    }
-    for (i, in_bounds_face_angle) in (&in_bounds.face_angle_limits).into_iter().enumerate() {
-        if !in_bounds_face_angle {
-            weights.face_angle_weights[i] += 1.0;
-            weights.face_angle_weights[i] *= 10000.0;
-        }
-    }
-    for (i, in_bounds_angle_vel) in (&in_bounds.angle_vel_limits).into_iter().enumerate() {
-        if !in_bounds_angle_vel {
-            weights.angle_vel_weights[i] += 1.0;
-            weights.angle_vel_weights[i] *= 10000.0;
-        }
-    }
-    if !in_bounds.hspd_limits.hspd {
-        weights.hspd_weight += 1.0;
-        weights.hspd_weight *= 1000.0;
-    }
-}
+
