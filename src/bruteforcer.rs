@@ -1,14 +1,11 @@
 use crate::bounds::{Bounds, IsInBounds, Weights, adjust_weights};
-use crate::{
-    ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS,
-    GAME_CREATION_LOCK, HSPD_WEIGHT, INF, M64File, POS_WEIGHTS,
-};
+use crate::{ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS, GAME_CREATION_LOCK, HSPD_WEIGHT, INF, M64File, POS_WEIGHTS, OUT_NAME};
 use crate::{BOUND_CORRECTION, END_FRAME, PERM_FREQ, PERM_SIZE, START_FRAME, WAFEL_PATH};
 use crate::{NUM_THREADS, VERSION};
 use rand::random_range;
 use std::fs::copy;
 use std::path::Path;
-use wafel_api::Game;
+use wafel_api::{save_m64, Game};
 use wafel_api::Input;
 use wafel_api::Value;
 // Spawn more dlls
@@ -86,13 +83,13 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         }
     };
     println!("Thread {}: Created game instance", thread_num);
-    let mut startst = game.save_state();
+    let mut start_st = game.save_state();
     for frame in 0..END_FRAME {
         set_inputs(&mut game, &m64.1[frame as usize]);
         game.advance();
         if frame == START_FRAME {
             // Save the state at the start frame for bruteforcing
-            startst = game.save_state();
+            start_st = game.save_state();
         }
     }
     let pos = game.read("gMarioState.pos").as_f32_3();
@@ -115,8 +112,9 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         "Thread {}: Initial score: {}, at frame {}",
         thread_num, result, END_FRAME
     );
+    let mut count = 0;
     loop {
-        game.load_state(&startst);
+        game.load_state(&start_st);
 
         // Perturb the inputs for the current frame
         let mut m64_perturb: M64File = m64.clone();
@@ -155,6 +153,9 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             );
             *m64 = m64_perturb;
         }
+        if count % 100000 == 0 {
+            save_m64(OUT_NAME, &m64.0, &m64.1)
+        }
     }
 }
 
@@ -167,12 +168,10 @@ fn perturb_inputs_simple(
 ) {
     for frame in start_frame..end_frame {
         let input = &mut inputs[frame as usize];
-        // Perturb the inputs here, e.g., randomize stick positions or button presses
         let random_f32 = random_range(0.0f32..1.0f32);
         if random_f32 > perm_freq {
             continue;
         }
-        // Randomize stick positions
         let rand_x = random_range(-(perm_size as i8)..(perm_size as i8));
         let rand_y = random_range(-(perm_size as i8)..(perm_size as i8));
         // Ensure stick positions don't overflow

@@ -1,6 +1,5 @@
 mod bounds;
 mod bruteforcer;
-mod coinrng;
 
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
@@ -66,23 +65,23 @@ const OBJID_WAFEL_SLOT: i64 = 1;
 const OBJID_STROOP_SLOT: i64 = 2;
 static GAME_CREATION_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
-pub struct AtomicF32 {
-    storage: AtomicU32,
+pub struct AtomicF64 {
+    storage: AtomicU64,
 }
-impl AtomicF32 {
-    pub fn new(value: f32) -> Self {
-        let as_u32 = value.to_bits();
+impl AtomicF64 {
+    pub fn new(value: f64) -> Self {
+        let as_u64 = value.to_bits();
         Self {
-            storage: AtomicU32::new(as_u32),
+            storage: AtomicU64::new(as_u64),
         }
     }
-    pub fn store(&self, value: f32, ordering: Ordering) {
-        let as_u32 = value.to_bits();
-        self.storage.store(as_u32, ordering)
+    pub fn store(&self, value: f64, ordering: Ordering) {
+        let as_u64 = value.to_bits();
+        self.storage.store(as_u64, ordering)
     }
-    pub fn load(&self, ordering: Ordering) -> f32 {
-        let as_u32 = self.storage.load(ordering);
-        f32::from_bits(as_u32)
+    pub fn load(&self, ordering: Ordering) -> f64 {
+        let as_u64 = self.storage.load(ordering);
+        f64::from_bits(as_u64)
     }
 }
 pub fn main() {
