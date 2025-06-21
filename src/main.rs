@@ -93,7 +93,7 @@ pub fn main() {
     //let mut handles = vec![];
     //spawn_dlls();
 
-    let mut global_score = AtomicF32::new(0.0);
+    let mut global_score = AtomicF64::new(0.0);
     for i in 0..NUM_THREADS {
         let mut m64_clones = m64.clone();
         /*let handle = std::thread::spawn(move || {});
