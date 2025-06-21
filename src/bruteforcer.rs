@@ -95,9 +95,6 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             start_st = game.save_state();
         }
     }
-    let pos = game.read("gMarioState.pos").as_f32_3();
-    let angle = game.read("gMarioState.faceAngle").as_i16_3();
-
     let mut weights = Weights {
         pos_weights: POS_WEIGHTS,
         face_angle_weights: FACE_ANGLE_WEIGHTS,
