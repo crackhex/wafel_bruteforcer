@@ -1,13 +1,16 @@
 use crate::bounds::{Bounds, IsInBounds, Weights, adjust_weights};
-use crate::{ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS, GAME_CREATION_LOCK, HSPD_WEIGHT, INF, M64File, POS_WEIGHTS, OUT_NAME};
+use crate::{
+    ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD, DES_POS, FACE_ANGLE_WEIGHTS,
+    GAME_CREATION_LOCK, HSPD_WEIGHT, M64File, OUT_NAME, POS_WEIGHTS,
+};
 use crate::{BOUND_CORRECTION, END_FRAME, PERM_FREQ, PERM_SIZE, START_FRAME, WAFEL_PATH};
 use crate::{NUM_THREADS, VERSION};
 use rand::random_range;
 use std::fs::copy;
 use std::path::Path;
-use wafel_api::{save_m64, Game};
 use wafel_api::Input;
 use wafel_api::Value;
+use wafel_api::{Game, save_m64};
 // Spawn more dlls
 
 pub fn spawn_dlls() {
@@ -82,7 +85,7 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             ))
         }
     };
-    println!("Thread {}: Created game instance", thread_num);
+    println!("Thread {thread_num}: Created game instance");
     let mut start_st = game.save_state();
     for frame in 0..END_FRAME {
         set_inputs(&mut game, &m64.1[frame as usize]);
@@ -104,15 +107,12 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
     if BOUND_CORRECTION {
         let bounds = Bounds::new();
         let in_bounds = IsInBounds::check_bounds_from_game(&game, &bounds);
-        adjust_weights(&game, &in_bounds, &mut weights);
+        adjust_weights(&in_bounds, &mut weights);
     }
 
     let mut result: f64 = calculate_score(&game, &weights);
-    println!(
-        "Thread {}: Initial score: {}, at frame {}",
-        thread_num, result, END_FRAME
-    );
-    let mut count = 0;
+    println!("Thread {thread_num}: Initial score: {result}, at frame {END_FRAME}");
+    let count = 0;
     loop {
         game.load_state(&start_st);
 
@@ -134,16 +134,13 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
             weights = Weights::new();
             let bounds = Bounds::new();
             let in_bounds = IsInBounds::check_bounds_from_game(&game, &bounds);
-            adjust_weights(&game, &in_bounds, &mut weights);
+            adjust_weights(&in_bounds, &mut weights);
         }
         let new_score = calculate_score(&game, &weights);
         if new_score < result {
             // If the new score is better, update the inputs and result
             result = new_score;
-            println!(
-                "Thread {}: New best score: {}, at frame {}",
-                thread_num, result, END_FRAME
-            );
+            println!("Thread {thread_num}: New best score: {result}, at frame {END_FRAME}");
             println!(
                 "Position: {:?}, Face Angle: {:?}, Angle Vel: {:?}, Forward Vel: {}",
                 game.read("gMarioState.pos").as_f32_3(),

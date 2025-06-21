@@ -111,6 +111,12 @@ pub struct InPosBounds {
     pub pos_z: bool,
 }
 
+impl Default for InPosBounds {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InPosBounds {
     pub fn new() -> Self {
         InPosBounds {
@@ -133,10 +139,34 @@ impl InPosBounds {
     }
 }
 
+impl IntoIterator for InPosBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [self.pos_x, self.pos_y, self.pos_z].into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a InPosBounds {
+    type Item = &'a bool;
+    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [&self.pos_x, &self.pos_y, &self.pos_z].into_iter()
+    }
+}
+
 pub struct InAngleVelBounds {
     pub angle_vel_x: bool,
     pub angle_vel_y: bool,
     pub angle_vel_z: bool,
+}
+
+impl Default for InAngleVelBounds {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InAngleVelBounds {
@@ -164,10 +194,34 @@ impl InAngleVelBounds {
     }
 }
 
+impl IntoIterator for InAngleVelBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [self.angle_vel_x, self.angle_vel_y, self.angle_vel_z].into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a InAngleVelBounds {
+    type Item = &'a bool;
+    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [&self.angle_vel_x, &self.angle_vel_y, &self.angle_vel_z].into_iter()
+    }
+}
+
 pub struct InFaceAngleBounds {
     pub face_angle_x: bool,
     pub face_angle_y: bool,
     pub face_angle_z: bool,
+}
+
+impl Default for InFaceAngleBounds {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl InFaceAngleBounds {
@@ -197,6 +251,24 @@ impl InFaceAngleBounds {
         }
     }
 }
+
+impl IntoIterator for InFaceAngleBounds {
+    type Item = bool;
+    type IntoIter = std::array::IntoIter<bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [self.face_angle_x, self.face_angle_y, self.face_angle_z].into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a InFaceAngleBounds {
+    type Item = &'a bool;
+    type IntoIter = std::array::IntoIter<&'a bool, 3>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        [&self.face_angle_x, &self.face_angle_y, &self.face_angle_z].into_iter()
+    }
+}
 pub struct InHspdBounds {
     pub hspd: bool,
 }
@@ -213,44 +285,25 @@ impl InHspdBounds {
     }
 }
 
-pub fn adjust_weights(game: &Game, in_bounds: &IsInBounds, weights: &mut Weights) {
+pub fn adjust_weights(in_bounds: &IsInBounds, weights: &mut Weights) {
     // 0 for testing //check_limits(game);
-    if !in_bounds.pos_limits.pos_x {
-        weights.pos_weights[0] += 1.0;
-        weights.pos_weights[0] *= 10000.0;
+    for (i, in_bounds_pos) in (&in_bounds.pos_limits).into_iter().enumerate() {
+        if !in_bounds_pos {
+            weights.pos_weights[i] += 1.0;
+            weights.pos_weights[i] *= 10000.0;
+        }
     }
-
-    if !in_bounds.pos_limits.pos_y {
-        weights.pos_weights[1] += 1.0;
-        weights.pos_weights[1] *= 10000.0;
+    for (i, in_bounds_face_angle) in (&in_bounds.face_angle_limits).into_iter().enumerate() {
+        if !in_bounds_face_angle {
+            weights.face_angle_weights[i] += 1.0;
+            weights.face_angle_weights[i] *= 10000.0;
+        }
     }
-    if !in_bounds.pos_limits.pos_z {
-        weights.pos_weights[2] += 1.0;
-        weights.pos_weights[2] *= 10000.0;
-    }
-    if !in_bounds.face_angle_limits.face_angle_x {
-        weights.face_angle_weights[0] += 1.0;
-        weights.face_angle_weights[0] *= 10000.0;
-    }
-    if !in_bounds.face_angle_limits.face_angle_y {
-        weights.face_angle_weights[1] += 1.0;
-        weights.face_angle_weights[1] *= 10000.0;
-    }
-    if !in_bounds.face_angle_limits.face_angle_z {
-        weights.face_angle_weights[2] += 1.0;
-        weights.face_angle_weights[2] *= 10000.0;
-    }
-    if !in_bounds.angle_vel_limits.angle_vel_x {
-        weights.angle_vel_weights[0] += 1.0;
-        weights.angle_vel_weights[0] *= 10000.0;
-    }
-    if !in_bounds.angle_vel_limits.angle_vel_y {
-        weights.angle_vel_weights[1] += 1.0;
-        weights.angle_vel_weights[1] *= 10000.0;
-    }
-    if !in_bounds.angle_vel_limits.angle_vel_z {
-        weights.angle_vel_weights[2] += 1.0;
-        weights.angle_vel_weights[2] *= 10000.0;
+    for (i, in_bounds_angle_vel) in (&in_bounds.angle_vel_limits).into_iter().enumerate() {
+        if !in_bounds_angle_vel {
+            weights.angle_vel_weights[i] += 1.0;
+            weights.angle_vel_weights[i] *= 10000.0;
+        }
     }
     if !in_bounds.hspd_limits.hspd {
         weights.hspd_weight += 1.0;

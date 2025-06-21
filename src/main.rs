@@ -3,7 +3,7 @@ mod bruteforcer;
 
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use wafel_api::Input;
 use wafel_api::M64Metadata;
 use wafel_api::load_m64;
@@ -93,12 +93,12 @@ pub fn main() {
     //let mut handles = vec![];
     //spawn_dlls();
 
-    let mut global_score = AtomicF64::new(0.0);
-    for i in 0..NUM_THREADS {
-        let mut m64_clones = m64.clone();
+    //let global_score = AtomicF64::new(0.0);
+    /*for i in 0..NUM_THREADS {
+        let m64_clones = m64.clone();
         /*let handle = std::thread::spawn(move || {});
         handles.push(handle);*/
-    }
+    }*/
     bruteforcer::bruteforce_loop(&mut m64, 1);
 
     /*for handle in handles {
