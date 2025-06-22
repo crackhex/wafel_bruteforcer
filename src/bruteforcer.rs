@@ -96,7 +96,7 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
     };
     println!("Thread {thread_num}: Created game instance");
     let mut start_st = game.save_state();
-    for frame in 0..END_FRAME {
+    for frame in 0..END_FRAME+1 {
         set_inputs(&mut game, &m64.1[frame as usize]);
         game.advance();
         if frame == START_FRAME - 1 {
@@ -132,12 +132,12 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         perturb_inputs_simple(
             &mut m64_perturb.1,
             START_FRAME,
-            END_FRAME,
+            END_FRAME+1,
             PERM_SIZE,
             PERM_FREQ,
         );
         // Set the perturbed inputs and advance the game
-        for frame in START_FRAME..END_FRAME {
+        for frame in START_FRAME..END_FRAME+1 {
             set_inputs(&mut game, &m64_perturb.1[frame as usize]);
             game.advance();
         }
