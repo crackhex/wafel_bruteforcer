@@ -32,6 +32,7 @@ impl CommonMarioData {
     }
 }
 
+#[derive(Clone)]
 pub struct Weights {
     pub pos_weights: [f64; 3],
     pub face_angle_weights: [f64; 3],
@@ -144,6 +145,13 @@ impl IsInBounds {
         is_in_bounds.update_from_mario_data(mario_data, bounds);
         is_in_bounds
     }
+
+    pub(crate) const fn check_if_all_true(&self) -> bool {
+        self.pos_limits.check_if_all_true()
+            && self.angle_vel_limits.check_if_all_true()
+            && self.face_angle_limits.check_if_all_true()
+            && self.hspd_limits.hspd
+    }
 }
 
 pub struct InPosBounds {
@@ -172,13 +180,23 @@ impl InPosBounds {
     pub const fn update_in_pos_bounds(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
         if !((pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1)) {
             self.pos_x = false;
+        } else {
+            self.pos_x = true;
         }
         if !((pos_limits[1].0 < pos[1]) && (pos[1] < pos_limits[1].1)) {
             self.pos_y = false;
+        } else {
+            self.pos_y = true;
         }
         if !((pos_limits[2].0 < pos[2]) && (pos[2] < pos_limits[2].1)) {
             self.pos_z = false;
+        } else {
+            self.pos_z = true;
         }
+    }
+
+    pub(crate) const fn check_if_all_true(&self) -> bool {
+        self.pos_x && self.pos_y && self.pos_z
     }
 }
 
@@ -230,13 +248,23 @@ impl InAngleVelBounds {
     ) {
         if !((angle_vel_limits[0].0 < angle_vel[0]) && (angle_vel[0] < angle_vel_limits[0].1)) {
             self.angle_vel_x = false;
+        } else {
+            self.angle_vel_x = true;
         }
         if !((angle_vel_limits[1].0 < angle_vel[1]) && (angle_vel[1] < angle_vel_limits[1].1)) {
             self.angle_vel_y = false;
+        } else {
+            self.angle_vel_y = true;
         }
         if !((angle_vel_limits[2].0 < angle_vel[2]) && (angle_vel[2] < angle_vel_limits[2].1)) {
             self.angle_vel_z = false;
+        } else {
+            self.angle_vel_z = true;
         }
+    }
+
+    pub(crate) const fn check_if_all_true(&self) -> bool {
+        self.angle_vel_x && self.angle_vel_y && self.angle_vel_z
     }
 }
 
@@ -290,17 +318,27 @@ impl InFaceAngleBounds {
             && ((angle[0] as i32) < face_angle_limits[0].1))
         {
             self.face_angle_x = false;
+        } else {
+            self.face_angle_x = true;
         }
         if !((face_angle_limits[1].0 < ((angle[1] as u16) as i32))
             && (((angle[1] as u16) as i32) < face_angle_limits[1].1))
         {
             self.face_angle_y = false;
+        } else {
+            self.face_angle_y = true;
         }
         if !((face_angle_limits[2].0 < (angle[2] as i32))
             && ((angle[2] as i32) < face_angle_limits[2].1))
         {
             self.face_angle_z = false;
+        } else {
+            self.face_angle_z = true;
         }
+    }
+
+    pub(crate) const fn check_if_all_true(&self) -> bool {
+        self.face_angle_x && self.face_angle_y && self.face_angle_z
     }
 }
 
@@ -335,6 +373,8 @@ impl InHspdBounds {
     pub const fn update_in_hspd_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
         if !((hspd_limits.0 < hspd) && (hspd < hspd_limits.1)) {
             self.hspd = false;
+        } else {
+            self.hspd = true;
         }
     }
 }

@@ -45,11 +45,28 @@ pub fn set_inputs(game: &mut Game, input: &Input) {
         Value::Int(input.buttons.into()),
     );
 }
+pub fn calculate_score_bound_correction(
+    bound_correction: bool,
+    mario_data: &CommonMarioData,
+    weights: &Weights,
+    in_bounds: &mut IsInBounds,
+) -> f64 {
+    let mut result: f64 = INF;
+    if bound_correction {
+        let mut new_weights = weights.clone();
+        new_weights.adjust_weights(&in_bounds);
+        result = calculate_score(&mario_data, &new_weights);
+    } else {
+        if in_bounds.check_if_all_true() {
+            result = calculate_score(&mario_data, &weights);
+        }
+    }
+    result
+}
 
 // Checking if mario falls within the limits set
 pub fn calculate_score(mario_data: &CommonMarioData, weights: &Weights) -> f64 {
     let mut result: f64 = 0.0;
-    result = 0.0;
     for i in 0..3 {
         result += (DES_POS[i] - mario_data.pos[i]).abs() as f64 * weights.pos_weights[i];
         result += (DES_ANGLE_VEL[i] - (mario_data.angle_vel[i])).abs() as f64
@@ -82,7 +99,7 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
     for frame in 0..END_FRAME {
         set_inputs(&mut game, &m64.1[frame as usize]);
         game.advance();
-        if frame == START_FRAME {
+        if frame == START_FRAME - 1 {
             // Save the state at the start frame for bruteforcing
             start_st = game.save_state();
         }
@@ -98,18 +115,15 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
     let bounds = Bounds::new();
     let mut in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
 
-    // todo: Pull into a function
-    if BOUND_CORRECTION {
-        let mut new_weights = Weights::new();
-        new_weights.adjust_weights(&in_bounds);
-        result = calculate_score(&mario_data, &weights);
-    } else {
-        // todo: If bound correction is not enabled, use different score calculation
-        result = calculate_score(&mario_data, &weights);
-    }
+    result =
+        calculate_score_bound_correction(BOUND_CORRECTION, &mario_data, &weights, &mut in_bounds);
 
     println!("Thread {thread_num}: Initial score: {result}, at frame {END_FRAME}");
-    let count = 0;
+    println!(
+        "Position: {:?}, Face Angle: {:?}, Angle Vel: {:?}, Forward Vel: {}",
+        mario_data.pos, mario_data.face_angle, mario_data.angle_vel, mario_data.forward_vel
+    );
+    let mut count = 0;
     loop {
         game.load_state(&start_st);
 
@@ -130,30 +144,29 @@ pub fn bruteforce_loop(m64: &mut M64File, thread_num: u16) {
         let mario_data = CommonMarioData::new_from_game(&game);
         in_bounds.update_from_mario_data(&mario_data, &bounds);
         // todo: Pull into a function
-        if BOUND_CORRECTION {
-            let mut new_weights = Weights::new();
-            new_weights.adjust_weights(&in_bounds);
-            result = calculate_score(&mario_data, &weights);
-        } else {
-            // todo: If bound correction is not enabled, use different score calculation
-            result = calculate_score(&mario_data, &weights);
-        }
-        let new_score = calculate_score(&mario_data, &weights);
+        let new_score = calculate_score_bound_correction(
+            BOUND_CORRECTION,
+            &mario_data,
+            &weights,
+            &mut in_bounds,
+        );
         if new_score < result {
             // If the new score is better, update the inputs and result
             result = new_score;
             println!("Thread {thread_num}: New best score: {result}, at frame {END_FRAME}");
             println!(
                 "Position: {:?}, Face Angle: {:?}, Angle Vel: {:?}, Forward Vel: {}",
-                game.read("gMarioState.pos").as_f32_3(),
-                game.read("gMarioState.faceAngle").as_i16_3(),
-                game.read("gMarioState.angleVel").as_i16_3(),
-                game.read("gMarioState.forwardVel").as_f32()
+                mario_data.pos,
+                mario_data.face_angle[1] as u16,
+                mario_data.angle_vel,
+                mario_data.forward_vel
             );
             *m64 = m64_perturb;
         }
-        if count % 100000 == 0 {
-            save_m64(OUT_NAME, &m64.0, &m64.1)
+        count += 1;
+        if count % 10000 == 0 {
+            save_m64(OUT_NAME, &m64.0, &m64.1);
+            println!("Thread {thread_num}: Saved m64 after {count} iterations");
         }
     }
 }
