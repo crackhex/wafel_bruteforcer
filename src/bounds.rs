@@ -7,6 +7,7 @@ use wafel_api::Game;
 /// Contains the information about Mario which is used when checking for bounds. These fields
 /// mirror the fields of the weights and bounds structs, and should be updated accordingly if
 /// more fields are added to the bounds and weights structs.
+#[derive(Default)]
 pub struct CommonMarioData {
     pub pos: [f32; 3],
     pub face_angle: [i16; 3],
@@ -118,13 +119,13 @@ impl IsInBounds {
         bounds: &Bounds,
     ) {
         self.pos_limits
-            .update_in_pos_bounds(mario_data.pos, bounds.pos_limits);
+            .evaluate_within_bounds(mario_data.pos, bounds.pos_limits);
         self.face_angle_limits
-            .update_in_face_angle_bounds(mario_data.face_angle, bounds.face_angle_limits);
+            .evaluate_within_bounds(mario_data.face_angle, bounds.face_angle_limits);
         self.angle_vel_limits
-            .update_in_angle_vel_bounds(mario_data.angle_vel, &bounds.angle_vel_limits);
+            .evaluate_within_bounds(mario_data.angle_vel, &bounds.angle_vel_limits);
         self.hspd_limits
-            .update_in_hspd_bounds(mario_data.forward_vel, bounds.hspd_limits);
+            .evaluate_within_bounds(mario_data.forward_vel, bounds.hspd_limits);
     }
 
     /// Takes in Game reference and Bounds reference, determines if Mario is in bounds, and
@@ -154,16 +155,11 @@ impl IsInBounds {
     }
 }
 
+#[derive(Default)]
 pub struct InPosBounds {
     pub pos_x: bool,
     pub pos_y: bool,
     pub pos_z: bool,
-}
-
-impl Default for InPosBounds {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl InPosBounds {
@@ -177,22 +173,10 @@ impl InPosBounds {
 
     /// Takes in a mutable reference to Self and checks if the given position is within
     /// the specified position limits. The fields for the struct are then set accordingly.
-    pub const fn update_in_pos_bounds(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
-        if !((pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1)) {
-            self.pos_x = false;
-        } else {
-            self.pos_x = true;
-        }
-        if !((pos_limits[1].0 < pos[1]) && (pos[1] < pos_limits[1].1)) {
-            self.pos_y = false;
-        } else {
-            self.pos_y = true;
-        }
-        if !((pos_limits[2].0 < pos[2]) && (pos[2] < pos_limits[2].1)) {
-            self.pos_z = false;
-        } else {
-            self.pos_z = true;
-        }
+    pub const fn evaluate_within_bounds(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
+        self.pos_x = (pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1);
+        self.pos_y = (pos_limits[1].0 < pos[1]) && (pos[1] < pos_limits[1].1);
+        self.pos_z = (pos_limits[2].0 < pos[2]) && (pos[2] < pos_limits[2].1);
     }
 
     pub(crate) const fn check_if_all_true(&self) -> bool {
@@ -218,18 +202,12 @@ impl IntoIterator for &InPosBounds {
     }
 }
 
+#[derive(Default)]
 pub struct InAngleVelBounds {
     pub angle_vel_x: bool,
     pub angle_vel_y: bool,
     pub angle_vel_z: bool,
 }
-
-impl Default for InAngleVelBounds {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl InAngleVelBounds {
     pub const fn new() -> Self {
         InAngleVelBounds {
@@ -241,26 +219,17 @@ impl InAngleVelBounds {
 
     /// Takes in a mutable reference to Self and checks if the given angle velocities are within
     /// the specified angle velocity limits. The fields for the struct are then set accordingly.
-    pub const fn update_in_angle_vel_bounds(
+    pub const fn evaluate_within_bounds(
         &mut self,
         angle_vel: [i16; 3],
         angle_vel_limits: &[(i16, i16); 3],
     ) {
-        if !((angle_vel_limits[0].0 < angle_vel[0]) && (angle_vel[0] < angle_vel_limits[0].1)) {
-            self.angle_vel_x = false;
-        } else {
-            self.angle_vel_x = true;
-        }
-        if !((angle_vel_limits[1].0 < angle_vel[1]) && (angle_vel[1] < angle_vel_limits[1].1)) {
-            self.angle_vel_y = false;
-        } else {
-            self.angle_vel_y = true;
-        }
-        if !((angle_vel_limits[2].0 < angle_vel[2]) && (angle_vel[2] < angle_vel_limits[2].1)) {
-            self.angle_vel_z = false;
-        } else {
-            self.angle_vel_z = true;
-        }
+        self.angle_vel_x =
+            (angle_vel_limits[0].0 < angle_vel[0]) && (angle_vel[0] < angle_vel_limits[0].1);
+        self.angle_vel_y =
+            (angle_vel_limits[1].0 < angle_vel[1]) && (angle_vel[1] < angle_vel_limits[1].1);
+        self.angle_vel_z =
+            (angle_vel_limits[2].0 < angle_vel[2]) && (angle_vel[2] < angle_vel_limits[2].1);
     }
 
     pub(crate) const fn check_if_all_true(&self) -> bool {
@@ -286,16 +255,11 @@ impl IntoIterator for &InAngleVelBounds {
     }
 }
 
+#[derive(Default)]
 pub struct InFaceAngleBounds {
     pub face_angle_x: bool,
     pub face_angle_y: bool,
     pub face_angle_z: bool,
-}
-
-impl Default for InFaceAngleBounds {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl InFaceAngleBounds {
@@ -309,32 +273,19 @@ impl InFaceAngleBounds {
 
     /// Takes in a mutable reference to Self and checks if the given face angles are within
     /// the specified face angle limits. The fields for the struct are then set accordingly.
-    pub const fn update_in_face_angle_bounds(
+    pub const fn evaluate_within_bounds(
         &mut self,
         angle: [i16; 3],
         face_angle_limits: [(i32, i32); 3],
     ) {
-        if !((face_angle_limits[0].0 < (angle[0] as i32))
-            && ((angle[0] as i32) < face_angle_limits[0].1))
-        {
-            self.face_angle_x = false;
-        } else {
-            self.face_angle_x = true;
-        }
-        if !((face_angle_limits[1].0 < ((angle[1] as u16) as i32))
-            && (((angle[1] as u16) as i32) < face_angle_limits[1].1))
-        {
-            self.face_angle_y = false;
-        } else {
-            self.face_angle_y = true;
-        }
-        if !((face_angle_limits[2].0 < (angle[2] as i32))
-            && ((angle[2] as i32) < face_angle_limits[2].1))
-        {
-            self.face_angle_z = false;
-        } else {
-            self.face_angle_z = true;
-        }
+        self.face_angle_x = (face_angle_limits[0].0 < (angle[0] as i32))
+            && ((angle[0] as i32) < face_angle_limits[0].1);
+
+        self.face_angle_y = (face_angle_limits[1].0 < (angle[1] as u16) as i32)
+            && (((angle[1] as u16) as i32) < face_angle_limits[1].1);
+
+        self.face_angle_x = (face_angle_limits[2].0 < (angle[2] as i32))
+            && ((angle[2] as i32) < face_angle_limits[2].1);
     }
 
     pub(crate) const fn check_if_all_true(&self) -> bool {
@@ -370,11 +321,7 @@ impl InHspdBounds {
 
     /// Takes in a mutable reference to Self and checks if the given horizontal speed is within
     /// the specified forward velocity limits. The fields for the struct are then set accordingly.
-    pub const fn update_in_hspd_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
-        if !((hspd_limits.0 < hspd) && (hspd < hspd_limits.1)) {
-            self.hspd = false;
-        } else {
-            self.hspd = true;
-        }
+    pub const fn evaluate_within_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
+        self.hspd = (hspd_limits.0 < hspd) && (hspd < hspd_limits.1);
     }
 }
