@@ -99,7 +99,18 @@ pub fn main() {
         /*let handle = std::thread::spawn(move || {});
         handles.push(handle);*/
     }*/
-    bruteforcer::bruteforce_loop(&mut m64, 1);
+    let brute_config = BruteforceConfig::new(
+        START_FRAME,
+        END_FRAME,
+        PERM_FREQ,
+        PERM_SIZE,
+        WAFEL_PATH,
+        VERSION,
+        OUT_NAME,
+        1,
+        BOUND_CORRECTION,
+    );
+    bruteforcer::bruteforce_main(&mut m64, brute_config);
 
     /*for handle in handles {
         handle.join().unwrap();

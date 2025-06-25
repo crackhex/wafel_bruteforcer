@@ -1,7 +1,3 @@
-use crate::{
-    ANGLE_VEL_LIMITS, ANGLE_VEL_WEIGHTS, FACE_ANGLE_LIMITS, FACE_ANGLE_WEIGHTS, HSPD_LIMITS,
-    HSPD_WEIGHT, POS_LIMITS, POS_WEIGHTS,
-};
 use wafel_api::Game;
 
 /// Contains the information about Mario which is used when checking for bounds. These fields
@@ -33,6 +29,43 @@ impl CommonMarioData {
     }
 }
 
+/// Configuration for the bruteforcer, containing all the necessary parameters to run the bruteforce
+pub(crate) struct BruteforceConfig {
+    pub start_frame: u32,
+    pub end_frame: u32,
+    pub perm_freq: f32,
+    pub perm_size: u8,
+    pub wafel_path: &'static str,
+    pub version: &'static str,
+    pub output_name: &'static str,
+    pub thread_num: u16,
+    pub bound_correction: bool,
+}
+impl BruteforceConfig {
+    pub fn new(
+        start_frame: u32,
+        end_frame: u32,
+        perm_freq: f32,
+        perm_size: u8,
+        wafel_path: &'static str,
+        version: &'static str,
+        output_name: &'static str,
+        thread_num: u16,
+        bound_correction: bool,
+    ) -> Self {
+        Self {
+            start_frame,
+            end_frame,
+            perm_freq,
+            perm_size,
+            wafel_path,
+            version,
+            output_name,
+            thread_num,
+            bound_correction,
+        }
+    }
+}
 #[derive(Clone)]
 pub struct Weights {
     pub pos_weights: [f64; 3],
@@ -41,18 +74,23 @@ pub struct Weights {
     pub hspd_weight: f64,
 }
 impl Weights {
-    pub fn new() -> Self {
+        pub fn new(
+        pos_weights: [f64; 3],
+        face_angle_weights: [f64; 3],
+        angle_vel_weights: [f64; 3],
+        hspd_weight: f64,
+    ) -> Self {
         Self {
-            pos_weights: POS_WEIGHTS,
-            face_angle_weights: FACE_ANGLE_WEIGHTS,
-            angle_vel_weights: ANGLE_VEL_WEIGHTS,
-            hspd_weight: HSPD_WEIGHT,
+            pos_weights,
+            face_angle_weights,
+            angle_vel_weights,
+            hspd_weight,
         }
     }
     /// Takes in an instance of IsInBounds and a mutable reference to Weights, and adjusts the weights
     /// based on the data given by in_bounds. This is used to penalize the score for not being within
     /// the specified bounds, without failing the score entirely.
-    pub fn adjust_weights(&mut self, in_bounds: &IsInBounds) {
+    pub fn penalise_bounds(&mut self, in_bounds: &IsInBounds) {
         // 0 for testing //check_limits(game);
         for (i, in_bounds_pos) in (&in_bounds.pos_limits).into_iter().enumerate() {
             if !in_bounds_pos {
@@ -86,12 +124,17 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    pub fn new() -> Self {
+    pub fn new(
+        pos_limits: [(f32, f32); 3],
+        face_angle_limits: [(i32, i32); 3],
+        angle_vel_limits: [(i16, i16); 3],
+        hspd_limits: (f32, f32),
+    ) -> Self {
         Bounds {
-            pos_limits: POS_LIMITS,
-            face_angle_limits: FACE_ANGLE_LIMITS,
-            angle_vel_limits: ANGLE_VEL_LIMITS,
-            hspd_limits: HSPD_LIMITS,
+            pos_limits,
+            face_angle_limits,
+            angle_vel_limits,
+            hspd_limits,
         }
     }
 }
