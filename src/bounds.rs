@@ -261,7 +261,7 @@ impl InBoundsTrait for InFaceAngleBounds {
         self.face_angle_y = (face_angle_limits[1].0 < (angle[1] as u16) as i32)
             && (((angle[1] as u16) as i32) < face_angle_limits[1].1);
 
-        self.face_angle_x = (face_angle_limits[2].0 < (angle[2] as i32))
+        self.face_angle_z = (face_angle_limits[2].0 < (angle[2] as i32))
             && ((angle[2] as i32) < face_angle_limits[2].1);
     }
     fn check_if_all_true(&self) -> bool {
