@@ -38,6 +38,7 @@ const BASIS_NAME: &str = ".m64";
 // Bound correction toggle
 // Makes bruteforcer try matching bounds when not originally within it
 const BOUND_CORRECTION: bool = true;
+const BOUND_PENALTY: f64 = 1000.0; // Penalty for being out of bounds
 
 // Permutation settings and such
 // Will probably implement a better algorithm later but this is fine for now
