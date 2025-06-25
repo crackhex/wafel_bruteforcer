@@ -11,8 +11,6 @@ use wafel_api::M64Metadata;
 use wafel_api::load_m64;
 
 // Number of cores used
-pub const INF: f64 = 1.0 / 0.0;
-pub const INF32: f32 = 1.0 / 0.0;
 type M64File = (M64Metadata, Vec<Input>);
 const NUM_THREADS: u16 = 4;
 

@@ -4,6 +4,7 @@ use wafel_api::Game;
 /// Contains the information about Mario which is used when checking for bounds. These fields
 /// mirror the fields of the weights and bounds structs, and should be updated accordingly if
 /// more fields are added to the bounds and weights structs.
+// TODO: Find a better place for this struct
 #[derive(Default)]
 pub struct CommonMarioData {
     pub pos: [f32; 3],
@@ -31,6 +32,7 @@ impl CommonMarioData {
 }
 
 pub trait InBoundsTrait {
+    fn evaluate_within_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds);
     fn check_if_all_true(&self) -> bool;
     fn adjust_weights(&self, weights: &mut Weights, bound_penalty: impl Into<f64>);
 }
@@ -76,14 +78,12 @@ impl IsInBounds {
     }
 
     pub(crate) fn update_from_mario_data(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
-        self.pos_limits
-            .evaluate_within_bounds(mario_data.pos, bounds.pos_limits);
+        self.pos_limits.evaluate_within_bounds(mario_data, bounds);
         self.face_angle_limits
-            .evaluate_within_bounds(mario_data.face_angle, bounds.face_angle_limits);
+            .evaluate_within_bounds(mario_data, bounds);
         self.angle_vel_limits
-            .evaluate_within_bounds(mario_data.angle_vel, &bounds.angle_vel_limits);
-        self.hspd_limits
-            .evaluate_within_bounds(mario_data.forward_vel, bounds.hspd_limits);
+            .evaluate_within_bounds(mario_data, bounds);
+        self.hspd_limits.evaluate_within_bounds(mario_data, bounds);
     }
 
     /// Takes in Game reference and Bounds reference, determines if Mario is in bounds, and
@@ -128,15 +128,17 @@ impl InPosBounds {
             pos_z: true,
         }
     }
-    pub const fn evaluate_within_bounds(&mut self, pos: [f32; 3], pos_limits: [(f32, f32); 3]) {
-        self.pos_x = (pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1);
-        self.pos_y = (pos_limits[1].0 < pos[1]) && (pos[1] < pos_limits[1].1);
-        self.pos_z = (pos_limits[2].0 < pos[2]) && (pos[2] < pos_limits[2].1);
-    }
 }
 impl InBoundsTrait for InPosBounds {
     /// Takes in a mutable reference to Self and checks if the given position is within
     /// the specified position limits. The fields for the struct are then set accordingly.
+    fn evaluate_within_bounds(&mut self, mario_data: &CommonMarioData, pos_limits: &Bounds) {
+        let pos = mario_data.pos;
+        let pos_limits = pos_limits.pos_limits;
+        self.pos_x = (pos_limits[0].0 < pos[0]) && (pos[0] < pos_limits[0].1);
+        self.pos_y = (pos_limits[1].0 < pos[1]) && (pos[1] < pos_limits[1].1);
+        self.pos_z = (pos_limits[2].0 < pos[2]) && (pos[2] < pos_limits[2].1);
+    }
     fn check_if_all_true(&self) -> bool {
         self.pos_x && self.pos_y && self.pos_z
     }
@@ -184,13 +186,13 @@ impl InAngleVelBounds {
             angle_vel_z: true,
         }
     }
+}
+impl InBoundsTrait for InAngleVelBounds {
     /// Takes in a mutable reference to Self and checks if the given angle velocities are within
     /// the specified angle velocity limits. The fields for the struct are then set accordingly.
-    pub const fn evaluate_within_bounds(
-        &mut self,
-        angle_vel: [i16; 3],
-        angle_vel_limits: &[(i16, i16); 3],
-    ) {
+    fn evaluate_within_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+        let angle_vel = mario_data.angle_vel;
+        let angle_vel_limits = bounds.angle_vel_limits;
         self.angle_vel_x =
             (angle_vel_limits[0].0 < angle_vel[0]) && (angle_vel[0] < angle_vel_limits[0].1);
         self.angle_vel_y =
@@ -198,8 +200,6 @@ impl InAngleVelBounds {
         self.angle_vel_z =
             (angle_vel_limits[2].0 < angle_vel[2]) && (angle_vel[2] < angle_vel_limits[2].1);
     }
-}
-impl InBoundsTrait for InAngleVelBounds {
     fn check_if_all_true(&self) -> bool {
         self.angle_vel_x && self.angle_vel_y && self.angle_vel_z
     }
@@ -248,14 +248,13 @@ impl InFaceAngleBounds {
             face_angle_z: true,
         }
     }
-
+}
+impl InBoundsTrait for InFaceAngleBounds {
     /// Takes in a mutable reference to Self and checks if the given face angles are within
     /// the specified face angle limits. The fields for the struct are then set accordingly.
-    pub const fn evaluate_within_bounds(
-        &mut self,
-        angle: [i16; 3],
-        face_angle_limits: [(i32, i32); 3],
-    ) {
+    fn evaluate_within_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+        let angle = mario_data.face_angle;
+        let face_angle_limits = bounds.face_angle_limits;
         self.face_angle_x = (face_angle_limits[0].0 < (angle[0] as i32))
             && ((angle[0] as i32) < face_angle_limits[0].1);
 
@@ -265,8 +264,6 @@ impl InFaceAngleBounds {
         self.face_angle_x = (face_angle_limits[2].0 < (angle[2] as i32))
             && ((angle[2] as i32) < face_angle_limits[2].1);
     }
-}
-impl InBoundsTrait for InFaceAngleBounds {
     fn check_if_all_true(&self) -> bool {
         self.face_angle_x && self.face_angle_y && self.face_angle_z
     }
@@ -307,15 +304,16 @@ impl InHspdBounds {
     pub const fn new() -> Self {
         InHspdBounds { hspd: true }
     }
-
-    /// Takes in a mutable reference to Self and checks if the given horizontal speed is within
-    /// the specified forward velocity limits. The fields for the struct are then set accordingly.
-    pub const fn evaluate_within_bounds(&mut self, hspd: f32, hspd_limits: (f32, f32)) {
-        self.hspd = (hspd_limits.0 < hspd) && (hspd < hspd_limits.1);
-    }
 }
 
 impl InBoundsTrait for InHspdBounds {
+    /// Takes in a mutable reference to Self and checks if the given horizontal speed is within
+    /// the specified forward velocity limits. The fields for the struct are then set accordingly.
+    fn evaluate_within_bounds(&mut self, mario_data: &CommonMarioData, bounds: &Bounds) {
+        let hspd = mario_data.forward_vel;
+        let hspd_limits = bounds.hspd_limits;
+        self.hspd = (hspd_limits.0 < hspd) && (hspd < hspd_limits.1);
+    }
     fn check_if_all_true(&self) -> bool {
         self.hspd
     }
