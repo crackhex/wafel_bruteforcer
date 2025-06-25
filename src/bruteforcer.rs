@@ -2,9 +2,7 @@ use crate::WAFEL_PATH;
 use crate::bounds::{Bounds, CommonMarioData, IsInBounds};
 use crate::bruteforce_params::{BruteforceConfig, Target, Weights};
 use crate::{
-    ANGLE_VEL_LIMITS,
-    FACE_ANGLE_LIMITS, GAME_CREATION_LOCK, HSPD_LIMITS,
-    M64File, POS_LIMITS,
+    ANGLE_VEL_LIMITS, FACE_ANGLE_LIMITS, GAME_CREATION_LOCK, HSPD_LIMITS, M64File, POS_LIMITS,
 };
 use crate::{NUM_THREADS, VERSION};
 use rand::random_range;
@@ -49,6 +47,7 @@ pub fn set_inputs(game: &mut Game, input: &Input) {
 }
 pub fn calculate_score_bound_correction(
     bound_correction: bool,
+    bound_penalty: f64,
     mario_data: &CommonMarioData,
     weights: &Weights,
     target: &Target,
@@ -57,7 +56,7 @@ pub fn calculate_score_bound_correction(
     let mut result: f64 = f64::INFINITY;
     if bound_correction {
         let mut new_weights = weights.clone();
-        new_weights.penalise_bounds(in_bounds);
+        new_weights.penalise_bounds(in_bounds, bound_penalty);
         result = calculate_score(mario_data, &new_weights, target);
     } else if in_bounds.check_if_all_true() {
         result = calculate_score(mario_data, weights, target);
@@ -119,6 +118,7 @@ pub fn bruteforce_main(
     let mut in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
     let result = calculate_score_bound_correction(
         brute_config.bound_correction,
+        brute_config.bound_penalty,
         &mario_data,
         &weights,
         &target,
@@ -179,6 +179,7 @@ fn bruteforce_loop(
         // todo: Pull into a function
         let new_score = calculate_score_bound_correction(
             brute_config.bound_correction,
+            brute_config.bound_penalty,
             &mario_data,
             &weights,
             &target,

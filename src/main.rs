@@ -9,7 +9,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use wafel_api::Input;
 use wafel_api::M64Metadata;
 use wafel_api::load_m64;
-use crate::bounds::BruteforceConfig;
 
 // Number of cores used
 pub const INF: f64 = 1.0 / 0.0;
@@ -112,6 +111,7 @@ pub fn main() {
         VERSION,
         OUT_NAME,
         1,
+        BOUND_PENALTY,
         BOUND_CORRECTION,
     );
     let weights = Weights::new(

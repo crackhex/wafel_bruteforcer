@@ -1,4 +1,4 @@
-use crate::bounds::IsInBounds;
+use crate::bounds::{InBoundsTrait, IsInBounds};
 
 /// Configuration for the bruteforcer, containing all the necessary parameters to run the bruteforce
 pub(crate) struct BruteforceConfig {
@@ -10,6 +10,7 @@ pub(crate) struct BruteforceConfig {
     pub version: &'static str,
     pub output_name: &'static str,
     pub thread_num: u16,
+    pub bound_penalty: f64,
     pub bound_correction: bool,
 }
 impl BruteforceConfig {
@@ -22,6 +23,7 @@ impl BruteforceConfig {
         version: &'static str,
         output_name: &'static str,
         thread_num: u16,
+        bound_penalty: f64,
         bound_correction: bool,
     ) -> Self {
         Self {
@@ -33,6 +35,7 @@ impl BruteforceConfig {
             version,
             output_name,
             thread_num,
+            bound_penalty,
             bound_correction,
         }
     }
@@ -86,29 +89,15 @@ impl Weights {
     /// Takes in an instance of IsInBounds and a mutable reference to Weights, and adjusts the weights
     /// based on the data given by in_bounds. This is used to penalize the score for not being within
     /// the specified bounds, without failing the score entirely.
-    pub fn penalise_bounds(&mut self, in_bounds: &IsInBounds) {
+    pub fn penalise_bounds(&mut self, in_bounds: &IsInBounds, bound_penalty: f64) {
         // 0 for testing //check_limits(game);
-        for (i, in_bounds_pos) in (&in_bounds.pos_limits).into_iter().enumerate() {
-            if !in_bounds_pos {
-                self.pos_weights[i] += 1.0;
-                self.pos_weights[i] *= 10000.0;
-            }
-        }
-        for (i, in_bounds_face_angle) in (&in_bounds.face_angle_limits).into_iter().enumerate() {
-            if !in_bounds_face_angle {
-                self.face_angle_weights[i] += 1.0;
-                self.face_angle_weights[i] *= 10000.0;
-            }
-        }
-        for (i, in_bounds_angle_vel) in (&in_bounds.angle_vel_limits).into_iter().enumerate() {
-            if !in_bounds_angle_vel {
-                self.angle_vel_weights[i] += 1.0;
-                self.angle_vel_weights[i] *= 10000.0;
-            }
-        }
-        if !in_bounds.hspd_limits.hspd {
-            self.hspd_weight += 1.0;
-            self.hspd_weight *= 1000.0;
-        }
+        in_bounds.pos_limits.adjust_weights(self, bound_penalty);
+        in_bounds
+            .face_angle_limits
+            .adjust_weights(self, bound_penalty);
+        in_bounds
+            .angle_vel_limits
+            .adjust_weights(self, bound_penalty);
+        in_bounds.hspd_limits.adjust_weights(self, bound_penalty);
     }
 }
