@@ -1,19 +1,19 @@
-use crate::bounds::{Bounds, BruteforceConfig, CommonMarioData, IsInBounds, Weights};
+use crate::WAFEL_PATH;
+use crate::bounds::{Bounds, CommonMarioData, IsInBounds};
+use crate::bruteforce_params::{BruteforceConfig, Target, Weights};
 use crate::{
-    M64File, ANGLE_VEL_LIMITS, ANGLE_VEL_WEIGHTS, DES_ANGLE_VEL, DES_FACE_ANGLE, DES_HSPD,
-    DES_POS, FACE_ANGLE_LIMITS, FACE_ANGLE_WEIGHTS, GAME_CREATION_LOCK, HSPD_LIMITS, HSPD_WEIGHT
-    , INF, POS_LIMITS, POS_WEIGHTS,
+    ANGLE_VEL_LIMITS,
+    FACE_ANGLE_LIMITS, GAME_CREATION_LOCK, HSPD_LIMITS,
+    M64File, POS_LIMITS,
 };
 use crate::{NUM_THREADS, VERSION};
-use crate::WAFEL_PATH;
 use rand::random_range;
 use std::fs::copy;
 use std::path::Path;
 use wafel_api::Value;
-use wafel_api::{save_m64, Game};
+use wafel_api::{Game, save_m64};
 use wafel_api::{Input, SaveState};
 // Spawn more dlls
-
 
 pub fn spawn_dlls() {
     println!("spawning DLLs...");
@@ -51,39 +51,45 @@ pub fn calculate_score_bound_correction(
     bound_correction: bool,
     mario_data: &CommonMarioData,
     weights: &Weights,
+    target: &Target,
     in_bounds: &mut IsInBounds,
 ) -> f64 {
-    let mut result: f64 = INF;
+    let mut result: f64 = f64::INFINITY;
     if bound_correction {
         let mut new_weights = weights.clone();
         new_weights.penalise_bounds(in_bounds);
-        result = calculate_score(mario_data, &new_weights);
+        result = calculate_score(mario_data, &new_weights, target);
     } else if in_bounds.check_if_all_true() {
-        result = calculate_score(mario_data, weights);
+        result = calculate_score(mario_data, weights, target);
     }
     result
 }
 
 // Checking if mario falls within the limits set
-pub fn calculate_score(mario_data: &CommonMarioData, weights: &Weights) -> f64 {
+pub fn calculate_score(mario_data: &CommonMarioData, weights: &Weights, target: &Target) -> f64 {
     let mut result: f64 = 0.0;
     for i in 0..3 {
-        result += (DES_POS[i] - mario_data.pos[i]).abs() as f64 * weights.pos_weights[i];
-        result += (DES_ANGLE_VEL[i] - (mario_data.angle_vel[i])).abs() as f64
+        result += (target.pos[i] - mario_data.pos[i]).abs() as f64 * weights.pos_weights[i];
+        result += (target.angle_vel[i] - (mario_data.angle_vel[i])).abs() as f64
             * weights.angle_vel_weights[i];
     }
-    result += (DES_HSPD - mario_data.forward_vel).abs() as f64 * weights.hspd_weight;
-    result += (DES_FACE_ANGLE[0] as f64 - mario_data.face_angle[0] as f64).abs()
+    result += (target.hspd - mario_data.forward_vel).abs() as f64 * weights.hspd_weight;
+    result += (target.face_angle[0] as f64 - mario_data.face_angle[0] as f64).abs()
         * weights.face_angle_weights[0];
-    result += (DES_FACE_ANGLE[1] - (mario_data.face_angle[1] as u16) as i32).abs() as f64
+    result += (target.face_angle[1] - (mario_data.face_angle[1] as u16) as i32).abs() as f64
         * weights.face_angle_weights[1];
-    result += (DES_FACE_ANGLE[2] as f64 - mario_data.face_angle[2] as f64).abs()
+    result += (target.face_angle[2] as f64 - mario_data.face_angle[2] as f64).abs()
         * weights.face_angle_weights[2];
     result
 }
 
 // Adjust weights for fitness calculations and run
-pub fn bruteforce_main(m64: &mut M64File, brute_config: BruteforceConfig) {
+pub fn bruteforce_main(
+    m64: M64File,
+    weights: Weights,
+    target: Target,
+    brute_config: BruteforceConfig,
+) {
     // LOCK: Only protect this block
     // Create a new game instance with the DLL for this thread
     let mut game = {
@@ -107,20 +113,15 @@ pub fn bruteforce_main(m64: &mut M64File, brute_config: BruteforceConfig) {
             start_st = game.save_state();
         }
     }
-    let weights = Weights::new(
-        POS_WEIGHTS,
-        FACE_ANGLE_WEIGHTS,
-        ANGLE_VEL_WEIGHTS,
-        HSPD_WEIGHT,
-    );
-    let mut result: f64 = f64::INFINITY;
+
     let mario_data = CommonMarioData::new_from_game(&game);
     let bounds = Bounds::new(POS_LIMITS, FACE_ANGLE_LIMITS, ANGLE_VEL_LIMITS, HSPD_LIMITS);
     let mut in_bounds = IsInBounds::new_from_mario_data(&mario_data, &bounds);
-    result = calculate_score_bound_correction(
+    let result = calculate_score_bound_correction(
         brute_config.bound_correction,
         &mario_data,
         &weights,
+        &target,
         &mut in_bounds,
     );
     println!(
@@ -133,29 +134,31 @@ pub fn bruteforce_main(m64: &mut M64File, brute_config: BruteforceConfig) {
     );
     bruteforce_loop(
         m64,
-        &mut game,
-        &start_st,
+        game,
+        start_st,
         in_bounds,
         bounds,
-        &weights.clone(),
+        weights,
+        target,
         result,
         brute_config,
     );
 }
 
 fn bruteforce_loop(
-    m64: &mut M64File,
-    mut game: &mut Game,
-    start_st: &SaveState,
+    mut m64: M64File,
+    mut game: Game,
+    start_st: SaveState,
     mut in_bounds: IsInBounds,
     bounds: Bounds,
-    weights: &Weights,
+    weights: Weights,
+    target: Target,
     mut result: f64,
     brute_config: BruteforceConfig,
 ) -> f64 {
     let mut count = 0;
     loop {
-        game.load_state(start_st);
+        game.load_state(&start_st);
 
         // Perturb the inputs for the current frame
         let mut m64_perturb: M64File = m64.clone();
@@ -168,16 +171,17 @@ fn bruteforce_loop(
         );
         // Set the perturbed inputs and advance the game
         for frame in brute_config.start_frame..brute_config.end_frame + 1 {
-            set_inputs(game, &m64_perturb.1[frame as usize]);
+            set_inputs(&mut game, &m64_perturb.1[frame as usize]);
             game.advance();
         }
-        let mario_data = CommonMarioData::new_from_game(game);
+        let mario_data = CommonMarioData::new_from_game(&game);
         in_bounds.update_from_mario_data(&mario_data, &bounds);
         // todo: Pull into a function
         let new_score = calculate_score_bound_correction(
             brute_config.bound_correction,
             &mario_data,
-            weights,
+            &weights,
+            &target,
             &mut in_bounds,
         );
         if new_score < result {
@@ -194,7 +198,7 @@ fn bruteforce_loop(
                 mario_data.angle_vel,
                 mario_data.forward_vel
             );
-            *m64 = m64_perturb;
+            m64 = m64_perturb;
         }
         count += 1;
         if count % 10000 == 0 {

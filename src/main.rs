@@ -1,6 +1,8 @@
 mod bounds;
+mod bruteforce_params;
 mod bruteforcer;
 
+use crate::bruteforce_params::{BruteforceConfig, Target, Weights};
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -91,7 +93,7 @@ pub fn main() {
 
     // Number of threads for multiprocessing
 
-    let mut m64: M64File = load_m64(INP_NAME);
+    let m64: M64File = load_m64(INP_NAME);
     //let mut handles = vec![];
     //spawn_dlls();
 
@@ -112,7 +114,20 @@ pub fn main() {
         1,
         BOUND_CORRECTION,
     );
-    bruteforcer::bruteforce_main(&mut m64, brute_config);
+    let weights = Weights::new(
+        POS_WEIGHTS,
+        FACE_ANGLE_WEIGHTS,
+        ANGLE_VEL_WEIGHTS,
+        HSPD_WEIGHT,
+    );
+    let target = Target::new(
+        DES_POS,
+        DES_FACE_ANGLE,
+        DES_ANGLE_VEL,
+        DES_HSPD,
+        COIN_LIMIT as u16,
+    );
+    bruteforcer::bruteforce_main(m64, weights, target, brute_config);
 
     /*for handle in handles {
         handle.join().unwrap();
